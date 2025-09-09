@@ -1,5 +1,5 @@
-// Array of quotes (each quote has text + category)
-let quotes = [
+// Load quotes from localStorage or fallback to defaults
+let quotes = JSON.parse(localStorage.getItem("quotes")) || [
   { text: "The best way to predict the future is to invent it.", category: "Motivation" },
   { text: "Life is 10% what happens to us and 90% how we react to it.", category: "Life" },
   { text: "The journey of a thousand miles begins with one step.", category: "Wisdom" }
@@ -30,8 +30,11 @@ function addQuote() {
     return;
   }
 
-  // Add new quote to array
+  // Add new quote
   quotes.push({ text: newText, category: newCategory });
+
+  // Save to localStorage
+  localStorage.setItem("quotes", JSON.stringify(quotes));
 
   // Clear inputs
   textInput.value = "";
@@ -58,17 +61,33 @@ function createAddQuoteForm() {
   addButton.textContent = "Add Quote";
   addButton.onclick = addQuote;
 
-  // Append everything into the form div
   formDiv.appendChild(textInput);
   formDiv.appendChild(categoryInput);
   formDiv.appendChild(addButton);
 
-  // Append form into the body (or wherever you want)
   document.body.appendChild(formDiv);
+}
+
+// Function to export quotes to JSON file
+function exportQuotes() {
+  const dataStr = JSON.stringify(quotes, null, 2);
+  const blob = new Blob([dataStr], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "quotes.json"; // Filename
+  document.body.appendChild(a);
+  a.click();
+
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // Setup event listeners after DOM loads
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("newQuote").addEventListener("click", showRandomQuote);
-  createAddQuoteForm(); // create the form dynamically
+  document.getElementById("exportQuotes").addEventListener("click", exportQuotes);
+
+  createAddQuoteForm(); // create form dynamically
 });
