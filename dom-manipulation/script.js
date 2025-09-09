@@ -5,6 +5,11 @@ let quotes = JSON.parse(localStorage.getItem("quotes")) || [
   { text: "The journey of a thousand miles begins with one step.", category: "Wisdom" }
 ];
 
+// Save quotes to localStorage
+function saveQuotes() {
+  localStorage.setItem("quotes", JSON.stringify(quotes));
+}
+
 // Function to display a random quote
 function showRandomQuote() {
   const randomIndex = Math.floor(Math.random() * quotes.length);
@@ -34,7 +39,7 @@ function addQuote() {
   quotes.push({ text: newText, category: newCategory });
 
   // Save to localStorage
-  localStorage.setItem("quotes", JSON.stringify(quotes));
+  saveQuotes();
 
   // Clear inputs
   textInput.value = "";
@@ -82,6 +87,29 @@ function exportQuotes() {
 
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// Function to import quotes from uploaded JSON file
+function importFromJsonFile(event) {
+  const fileReader = new FileReader();
+
+  fileReader.onload = function(e) {
+    try {
+      const importedQuotes = JSON.parse(e.target.result);
+
+      if (Array.isArray(importedQuotes)) {
+        quotes.push(...importedQuotes);
+        saveQuotes();
+        alert("Quotes imported successfully!");
+      } else {
+        alert("Invalid file format. Please upload a JSON file with an array of quotes.");
+      }
+    } catch (error) {
+      alert("Error reading file: " + error.message);
+    }
+  };
+
+  fileReader.readAsText(event.target.files[0]);
 }
 
 // Setup event listeners after DOM loads
