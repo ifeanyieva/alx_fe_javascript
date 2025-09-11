@@ -15,22 +15,11 @@
       border-radius: 4px;
       font-family: Arial, sans-serif;
     }
-    .alert.info {
-      background: #d9edf7;
-      color: #31708f;
-    }
-    .alert.success {
-      background: #dff0d8;
-      color: #3c763d;
-    }
-    .alert.warning {
-      background: #fcf8e3;
-      color: #8a6d3b;
-    }
-    .alert.error {
-      background: #f2dede;
-      color: #a94442;
-    }
+    .alert.info { background: #d9edf7; color: #31708f; }
+    .alert.success { background: #dff0d8; color: #3c763d; }
+    .alert.warning { background: #fcf8e3; color: #8a6d3b; }
+    .alert.error { background: #f2dede; color: #a94442; }
+
     .conflict-box {
       background: #fff3cd;
       border: 1px solid #ffeeba;
@@ -87,14 +76,18 @@
     <label for="categoryFilter">Filter by category:</label>
     <select id="categoryFilter" onchange="filterQuotes()">
       <option value="all">All Categories</option>
-      <!-- Populated dynamically -->
     </select>
   </div>
 
   <!-- Import / Export -->
   <div>
     <button id="exportQuotes">Export Quotes</button>
-    <input type="file" id="importQuotes" accept=".json" onchange="importFromJsonFile(event)" />
+    <input type="file" id="importFile" accept=".json" onchange="importFromJsonFile(event)" />
+  </div>
+
+  <!-- Sync with server -->
+  <div>
+    <button id="syncQuotes">Sync Now</button>
   </div>
 
   <!-- Notifications + conflict resolution -->
