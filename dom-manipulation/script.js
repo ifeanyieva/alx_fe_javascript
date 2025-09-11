@@ -1,12 +1,10 @@
 // ================== Local Storage & Quotes ==================
-// Load quotes from localStorage or fallback to defaults
 let quotes = JSON.parse(localStorage.getItem("quotes")) || [
   { text: "The best way to predict the future is to invent it.", category: "Motivation" },
   { text: "Life is 10% what happens to us and 90% how we react to it.", category: "Life" },
   { text: "The journey of a thousand miles begins with one step.", category: "Wisdom" }
 ];
 
-// Save quotes to localStorage
 function saveQuotes() {
   localStorage.setItem("quotes", JSON.stringify(quotes));
 }
@@ -20,7 +18,7 @@ function showNotification(message, type = "info") {
   container.appendChild(alert);
 
   setTimeout(() => {
-    container.removeChild(alert);
+    if (container.contains(alert)) container.removeChild(alert);
   }, 5000);
 }
 
@@ -60,18 +58,18 @@ function addQuote() {
     return;
   }
 
-  const newQuote = { text: newText, category: newCategory };
+  const newQuote = { text: newText, category: newCategory, unsynced: true };
 
   quotes.push(newQuote);
   saveQuotes();
   populateCategoryFilter();
 
-  // Sync to server
-  postQuoteToServer(newQuote);
-
   textInput.value = "";
   categoryInput.value = "";
-  showNotification("New quote added successfully!", "success");
+  showNotification("New quote added locally. Syncing…", "success");
+
+  // Try syncing immediately
+  syncQuotes();
 }
 
 // ================== Dynamic Form ==================
@@ -146,10 +144,11 @@ function importFromJsonFile(event) {
     try {
       const importedQuotes = JSON.parse(e.target.result);
       if (Array.isArray(importedQuotes)) {
-        quotes.push(...importedQuotes);
+        quotes.push(...importedQuotes.map(q => ({ ...q, unsynced: true })));
         saveQuotes();
         populateCategoryFilter();
-        showNotification("Quotes imported successfully!", "success");
+        showNotification("Quotes imported successfully. Syncing…", "success");
+        syncQuotes();
       } else {
         alert("Invalid file format. Please upload a JSON array.");
       }
@@ -161,7 +160,6 @@ function importFromJsonFile(event) {
 }
 
 // ================== Server Sync ==================
-// Fetch new quotes from server
 async function fetchQuotesFromServer() {
   try {
     const response = await fetch("https://jsonplaceholder.typicode.com/posts");
@@ -178,18 +176,17 @@ async function fetchQuotesFromServer() {
   }
 }
 
-// POST new quote to server
 async function postQuoteToServer(quote) {
   try {
     const response = await fetch("https://jsonplaceholder.typicode.com/posts", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(quote)
     });
 
     const result = await response.json();
+    quote.unsynced = false; // mark as synced
+    saveQuotes();
     showNotification("Quote synced to server: " + JSON.stringify(result), "success");
   } catch (error) {
     showNotification("Failed to sync quote: " + error.message, "error");
@@ -239,6 +236,18 @@ function resolveConflicts(serverQuotes) {
   }
 }
 
+// ================== NEW: Sync Manager ==================
+async function syncQuotes() {
+  // Step 1: Push unsynced local quotes
+  const unsynced = quotes.filter(q => q.unsynced);
+  for (const q of unsynced) {
+    await postQuoteToServer(q);
+  }
+
+  // Step 2: Fetch server quotes and resolve conflicts
+  await fetchQuotesFromServer();
+}
+
 // ================== Init ==================
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("newQuote").addEventListener("click", showRandomQuote);
@@ -248,6 +257,6 @@ document.addEventListener("DOMContentLoaded", () => {
   populateCategoryFilter();
   showRandomQuote();
 
-  // Periodic fetch from server
-  setInterval(fetchQuotesFromServer, 30000); // every 30s
+  // Periodic sync
+  setInterval(syncQuotes, 30000);
 });
