@@ -10,25 +10,25 @@ function saveQuotes() {
   localStorage.setItem("quotes", JSON.stringify(quotes));
 }
 
-// Function to display a random quote based on current filter
+// Function to display a random quote (with category filter)
 function showRandomQuote() {
   const categoryFilter = document.getElementById("categoryFilter").value;
+  let filteredQuotes = quotes;
 
-  let filteredQuotes =
-    categoryFilter === "all"
-      ? quotes
-      : quotes.filter(q => q.category === categoryFilter);
+  if (categoryFilter !== "all") {
+    filteredQuotes = quotes.filter(q => q.category === categoryFilter);
+  }
 
   if (filteredQuotes.length === 0) {
-    document.getElementById("quoteDisplay").innerHTML =
-      `<p>No quotes available in this category.</p>`;
+    alert("No quotes available for this category!");
     return;
   }
 
   const randomIndex = Math.floor(Math.random() * filteredQuotes.length);
   const quote = filteredQuotes[randomIndex];
 
-  document.getElementById("quoteDisplay").innerHTML = `
+  const displayDiv = document.getElementById("quoteDisplay");
+  displayDiv.innerHTML = `
     <p>"${quote.text}"</p>
     <small><em>Category: ${quote.category}</em></small>
   `;
@@ -47,18 +47,17 @@ function addQuote() {
     return;
   }
 
-  // Add new quote
-  quotes.push({ text: newText, category: newCategory });
+  const newQuote = { text: newText, category: newCategory };
 
-  // Save to localStorage
+  // Add locally
+  quotes.push(newQuote);
   saveQuotes();
 
-  // Update dropdown categories
-  populateCategories();
+  // Update category dropdown if new category introduced
+  populateCategoryFilter();
 
-  // Keep the new category selected & persist it
-  document.getElementById("categoryFilter").value = newCategory;
-  localStorage.setItem("selectedCategory", newCategory);
+  // Post to mock server
+  postQuoteToServer(newQuote);
 
   // Clear inputs
   textInput.value = "";
@@ -119,7 +118,7 @@ function importFromJsonFile(event) {
       if (Array.isArray(importedQuotes)) {
         quotes.push(...importedQuotes);
         saveQuotes();
-        populateCategories();
+        populateCategoryFilter();
         alert("Quotes imported successfully!");
       } else {
         alert("Invalid file format. Please upload a JSON file with an array of quotes.");
@@ -132,48 +131,90 @@ function importFromJsonFile(event) {
   fileReader.readAsText(event.target.files[0]);
 }
 
-// Populate categories in the dropdown and restore last selected filter
-function populateCategories() {
-  const categoryFilter = document.getElementById("categoryFilter");
+// ------------------- CATEGORY FILTER -------------------
+function populateCategoryFilter() {
+  const filter = document.getElementById("categoryFilter");
+  const existingValue = filter.value;
 
-  // Reset dropdown
-  categoryFilter.innerHTML = '<option value="all">All Categories</option>';
+  // Clear current options
+  filter.innerHTML = `<option value="all">All Categories</option>`;
 
-  // Extract unique categories
+  // Get unique categories
   const categories = [...new Set(quotes.map(q => q.category))];
 
-  // Add them as options
-  categories.forEach(category => {
+  categories.forEach(cat => {
     const option = document.createElement("option");
-    option.value = category;
-    option.textContent = category;
-    categoryFilter.appendChild(option);
+    option.value = cat;
+    option.textContent = cat;
+    filter.appendChild(option);
   });
 
   // Restore last selected filter
   const savedCategory = localStorage.getItem("selectedCategory");
-  if (savedCategory && (savedCategory === "all" || categories.includes(savedCategory))) {
-    categoryFilter.value = savedCategory;
+  if (savedCategory && [...filter.options].some(opt => opt.value === savedCategory)) {
+    filter.value = savedCategory;
+  } else {
+    filter.value = existingValue || "all";
   }
 }
 
-// Handle filter change
 function filterQuotes() {
-  const categoryFilter = document.getElementById("categoryFilter").value;
-
-  // Save selected filter to localStorage
-  localStorage.setItem("selectedCategory", categoryFilter);
-
-  // Show filtered random quote
+  const selectedCategory = document.getElementById("categoryFilter").value;
+  localStorage.setItem("selectedCategory", selectedCategory);
   showRandomQuote();
 }
 
-// Setup event listeners after DOM loads
+// ------------------- SERVER SIMULATION -------------------
+async function fetchQuotesFromServer() {
+  try {
+    const response = await fetch("https://jsonplaceholder.typicode.com/posts?_limit=5");
+    const data = await response.json();
+
+    const serverQuotes = data.map(post => ({
+      text: post.title,
+      category: "Server"
+    }));
+
+    // Merge without duplicates
+    quotes = [...quotes, ...serverQuotes];
+    saveQuotes();
+    populateCategoryFilter();
+  } catch (error) {
+    console.error("Error fetching quotes:", error);
+  }
+}
+
+async function postQuoteToServer(quote) {
+  try {
+    const response = await fetch("https://jsonplaceholder.typicode.com/posts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(quote)
+    });
+    const data = await response.json();
+    console.log("Posted to server:", data);
+  } catch (error) {
+    console.error("Error posting quote:", error);
+  }
+}
+
+// ------------------- INIT -------------------
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("newQuote").addEventListener("click", showRandomQuote);
   document.getElementById("exportQuotes").addEventListener("click", exportQuotes);
+  document.getElementById("importFile").addEventListener("change", importFromJsonFile);
 
-  populateCategories();  // build dropdown
-  createAddQuoteForm();  // create form dynamically
-  showRandomQuote();     // show a quote immediately
+  createAddQuoteForm();
+  populateCategoryFilter();
+  fetchQuotesFromServer(); // initial fetch
+
+  // Periodic updates every 30s
+  setInterval(fetchQuotesFromServer, 30000);
+
+  // Restore last selected filter and show quote
+  const savedCategory = localStorage.getItem("selectedCategory") || "all";
+  document.getElementById("categoryFilter").value = savedCategory;
+  showRandomQuote();
 });
